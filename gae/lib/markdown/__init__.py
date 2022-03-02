@@ -234,8 +234,11 @@ class Markdown(object):
             )
             # For backward compat (until deprecation)
             # check that this is an extension.
-            if ('.' not in ext_name and not (hasattr(module, 'makeExtension') or
-               (class_name and hasattr(module, class_name)))):
+            if (
+                '.' not in ext_name
+                and not hasattr(module, 'makeExtension')
+                and (not class_name or not hasattr(module, class_name))
+            ):
                 # We have a name conflict
                 # eg: extensions=['tables'] and PyTables is installed
                 raise ImportError
@@ -285,16 +288,15 @@ class Markdown(object):
         if class_name:
             # Load given class name from module.
             return getattr(module, class_name)(**configs)
-        else:
-            # Expect  makeExtension() function to return a class.
-            try:
-                return module.makeExtension(**configs)
-            except AttributeError as e:
-                message = e.args[0]
-                message = "Failed to initiate extension " \
-                          "'%s': %s" % (ext_name, message)
-                e.args = (message,) + e.args[1:]
-                raise
+        # Expect  makeExtension() function to return a class.
+        try:
+            return module.makeExtension(**configs)
+        except AttributeError as e:
+            message = e.args[0]
+            message = "Failed to initiate extension " \
+                      "'%s': %s" % (ext_name, message)
+            e.args = (message,) + e.args[1:]
+            raise
 
     def registerExtension(self, extension):
         """ This gets called by the extension """
@@ -320,8 +322,7 @@ class Markdown(object):
         try:
             self.serializer = self.output_formats[self.output_format]
         except KeyError as e:
-            valid_formats = list(self.output_formats.keys())
-            valid_formats.sort()
+            valid_formats = sorted(self.output_formats.keys())
             message = 'Invalid Output Format: "%s". Use one of %s.' \
                 % (self.output_format,
                    '"' + '", "'.join(valid_formats) + '"')

@@ -40,14 +40,8 @@ class DefListProcessor(BlockProcessor):
                  raw_block[:m.start()].split('\n') if l.strip()]
         block = raw_block[m.end():]
         no_indent = self.NO_INDENT_RE.match(block)
-        if no_indent:
-            d, theRest = (block, None)
-        else:
-            d, theRest = self.detab(block)
-        if d:
-            d = '%s\n%s' % (m.group(2), d)
-        else:
-            d = m.group(2)
+        d, theRest = (block, None) if no_indent else self.detab(block)
+        d = '%s\n%s' % (m.group(2), d) if d else m.group(2)
         sibling = self.lastChild(parent)
         if not terms and sibling is None:
             # This is not a definition item. Most likely a paragraph that

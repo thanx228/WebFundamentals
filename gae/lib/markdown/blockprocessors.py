@@ -55,10 +55,7 @@ class BlockProcessor(object):
 
     def lastChild(self, parent):
         """ Return the last child of an etree element. """
-        if len(parent):
-            return parent[-1]
-        else:
-            return None
+        return parent[-1] if len(parent) else None
 
     def detab(self, text):
         """ Remove a tab from the front of each line of the given text. """
@@ -194,30 +191,25 @@ class ListIndentProcessor(BlockProcessor):
 
     def get_level(self, parent, block):
         """ Get level of indent based on list level. """
-        # Get indent level
-        m = self.INDENT_RE.match(block)
-        if m:
+        if m := self.INDENT_RE.match(block):
             indent_level = len(m.group(1))/self.tab_length
         else:
             indent_level = 0
-        if self.parser.state.isstate('list'):
-            # We're in a tightlist - so we already are at correct parent.
-            level = 1
-        else:
-            # We're in a looselist - so we need to find parent.
-            level = 0
+        level = 1 if self.parser.state.isstate('list') else 0
         # Step through children of tree to find matching indent level.
         while indent_level > level:
             child = self.lastChild(parent)
-            if (child is not None and
-               (child.tag in self.LIST_TYPES or child.tag in self.ITEM_TYPES)):
-                if child.tag in self.LIST_TYPES:
-                    level += 1
-                parent = child
-            else:
+            if (
+                child is None
+                or child.tag not in self.LIST_TYPES
+                and child.tag not in self.ITEM_TYPES
+            ):
                 # No more child levels. If we're short of indent_level,
                 # we have a code block. So we stop here.
                 break
+            if child.tag in self.LIST_TYPES:
+                level += 1
+            parent = child
         return level, parent
 
 
@@ -263,8 +255,7 @@ class BlockQuoteProcessor(BlockProcessor):
 
     def run(self, parent, blocks):
         block = blocks.pop(0)
-        m = self.RE.search(block)
-        if m:
+        if m := self.RE.search(block):
             before = block[:m.start()]  # Lines before blockquote
             # Pass lines before blockquote in recursively for parsing forst.
             self.parser.parseBlocks(parent, [before])
@@ -385,8 +376,7 @@ class OListProcessor(BlockProcessor):
         """ Break a block into list items. """
         items = []
         for line in block.split('\n'):
-            m = self.CHILD_RE.match(line)
-            if m:
+            if m := self.CHILD_RE.match(line):
                 # This is a new list item
                 # Check first item for the start index
                 if not items and self.TAG == 'ol':
@@ -430,8 +420,7 @@ class HashHeaderProcessor(BlockProcessor):
 
     def run(self, parent, blocks):
         block = blocks.pop(0)
-        m = self.RE.search(block)
-        if m:
+        if m := self.RE.search(block):
             before = block[:m.start()]  # All lines before header
             after = block[m.end():]     # All lines after header
             if before:
@@ -445,7 +434,7 @@ class HashHeaderProcessor(BlockProcessor):
             if after:
                 # Insert remaining lines as first block for future parsing.
                 blocks.insert(0, after)
-        else:  # pragma: no cover
+        else:
             # This should never happen, but just in case...
             logger.warn("We've got a problem header: %r" % block)
 
@@ -462,10 +451,7 @@ class SetextHeaderProcessor(BlockProcessor):
     def run(self, parent, blocks):
         lines = blocks.pop(0).split('\n')
         # Determine level. ``=`` is 1 and ``-`` is 2.
-        if lines[1].startswith('='):
-            level = 1
-        else:
-            level = 2
+        level = 1 if lines[1].startswith('=') else 2
         h = util.etree.SubElement(parent, 'h%d' % level)
         h.text = lines[0].strip()
         if len(lines) > 2:
@@ -493,16 +479,12 @@ class HRProcessor(BlockProcessor):
 
     def run(self, parent, blocks):
         block = blocks.pop(0)
-        # Check for lines in block before hr.
-        prelines = block[:self.match.start()].rstrip('\n')
-        if prelines:
+        if prelines := block[: self.match.start()].rstrip('\n'):
             # Recursively parse lines before hr so they get parsed first.
             self.parser.parseBlocks(parent, [prelines])
         # create hr
         util.etree.SubElement(parent, 'hr')
-        # check for lines in block after hr.
-        postlines = block[self.match.end():].lstrip('\n')
-        if postlines:
+        if postlines := block[self.match.end() :].lstrip('\n'):
             # Add lines after hr to master blocks for later parsing.
             blocks.insert(0, postlines)
 
@@ -520,9 +502,7 @@ class EmptyBlockProcessor(BlockProcessor):
             # Starts with empty line
             # Only replace a single line.
             filler = '\n'
-            # Save the rest for later.
-            theRest = block[1:]
-            if theRest:
+            if theRest := block[1:]:
                 # Add remaining lines to master blocks for later.
                 blocks.insert(0, theRest)
         sibling = self.lastChild(parent)
@@ -560,12 +540,10 @@ class ParagraphProcessor(BlockProcessor):
                         sibling.tail = '%s\n%s' % (sibling.tail, block)
                     else:
                         sibling.tail = '\n%s' % block
+                elif parent.text:
+                    parent.text = '%s\n%s' % (parent.text, block)
                 else:
-                    # Append to parent.text
-                    if parent.text:
-                        parent.text = '%s\n%s' % (parent.text, block)
-                    else:
-                        parent.text = block.lstrip()
+                    parent.text = block.lstrip()
             else:
                 # Create a regular paragraph
                 p = util.etree.SubElement(parent, 'p')

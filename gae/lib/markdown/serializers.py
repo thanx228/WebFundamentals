@@ -152,29 +152,29 @@ def _serialize_html(write, elem, qnames, namespaces, format):
             for e in elem:
                 _serialize_html(write, e, qnames, None, format)
         else:
-            write("<" + tag)
-            items = elem.items()
-            if items or namespaces:
+            write(f"<{tag}")
+            if (
+                (items := elem.items())
+                or not (items := elem.items())
+                and namespaces
+            ):
                 items = sorted(items)  # lexical order
                 for k, v in items:
                     if isinstance(k, QName):
                         k = k.text
-                    if isinstance(v, QName):
-                        v = qnames[v.text]
-                    else:
-                        v = _escape_attrib_html(v)
+                    v = qnames[v.text] if isinstance(v, QName) else _escape_attrib_html(v)
                     if qnames[k] == v and format == 'html':
                         # handle boolean attributes
                         write(" %s" % v)
                     else:
                         write(" %s=\"%s\"" % (qnames[k], v))
-                if namespaces:
-                    items = namespaces.items()
-                    items.sort(key=lambda x: x[1])  # sort on prefix
-                    for v, k in items:
-                        if k:
-                            k = ":" + k
-                        write(" xmlns%s=\"%s\"" % (k, _escape_attrib(v)))
+            if namespaces:
+                items = namespaces.items()
+                items.sort(key=lambda x: x[1])  # sort on prefix
+                for v, k in items:
+                    if k:
+                        k = f":{k}"
+                    write(" xmlns%s=\"%s\"" % (k, _escape_attrib(v)))
             if format == "xhtml" and tag.lower() in HTML_EMPTY:
                 write(" />")
             else:
@@ -187,7 +187,7 @@ def _serialize_html(write, elem, qnames, namespaces, format):
                 for e in elem:
                     _serialize_html(write, e, qnames, None, format)
                 if tag.lower() not in HTML_EMPTY:
-                    write("</" + tag + ">")
+                    write(f"</{tag}>")
     if elem.tail:
         write(_escape_cdata(elem.tail))
 
@@ -201,10 +201,7 @@ def _write_html(root,
     write = data.append
     qnames, namespaces = _namespaces(root, default_namespace)
     _serialize_html(write, root, qnames, namespaces, format)
-    if encoding is None:
-        return "".join(data)
-    else:
-        return _encode("".join(data))
+    return "".join(data) if encoding is None else _encode("".join(data))
 
 
 # --------------------------------------------------------------------
@@ -233,16 +230,13 @@ def _namespaces(elem, default_namespace=None):
                         prefix = "ns%d" % len(namespaces)
                     if prefix != "xml":
                         namespaces[uri] = prefix
-                if prefix:
-                    qnames[qname] = "%s:%s" % (prefix, tag)
-                else:
-                    qnames[qname] = tag  # default element
+                qnames[qname] = "%s:%s" % (prefix, tag) if prefix else tag
+            elif default_namespace:
+                raise ValueError(
+                    "cannot use non-qualified names with "
+                    "default_namespace option"
+                    )
             else:
-                if default_namespace:
-                    raise ValueError(
-                        "cannot use non-qualified names with "
-                        "default_namespace option"
-                        )
                 qnames[qname] = qname
         except TypeError:  # pragma: no cover
             _raise_serialization_error(qname)

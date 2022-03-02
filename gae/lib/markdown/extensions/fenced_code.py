@@ -66,8 +66,7 @@ class FencedBlockPreprocessor(Preprocessor):
 
         text = "\n".join(lines)
         while 1:
-            m = self.FENCED_BLOCK_RE.search(text)
-            if m:
+            if m := self.FENCED_BLOCK_RE.search(text):
                 lang = ''
                 if m.group('lang'):
                     lang = self.LANG_TAG % m.group('lang')

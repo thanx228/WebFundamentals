@@ -71,11 +71,7 @@ def parse_options(args=None, values=None):
 
     (options, args) = parser.parse_args(args, values)
 
-    if len(args) == 0:
-        input_file = None
-    else:
-        input_file = args[0]
-
+    input_file = None if len(args) == 0 else args[0]
     if not options.extensions:
         options.extensions = []
 

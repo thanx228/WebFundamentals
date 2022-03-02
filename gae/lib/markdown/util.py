@@ -38,13 +38,13 @@ BLOCK_LEVEL_ELEMENTS = re.compile(
 # Placeholders
 STX = '\u0002'  # Use STX ("Start of text") for start-of-placeholder
 ETX = '\u0003'  # Use ETX ("End of text") for end-of-placeholder
-INLINE_PLACEHOLDER_PREFIX = STX+"klzzwxh:"
-INLINE_PLACEHOLDER = INLINE_PLACEHOLDER_PREFIX + "%s" + ETX
+INLINE_PLACEHOLDER_PREFIX = f'{STX}klzzwxh:'
+INLINE_PLACEHOLDER = f'{INLINE_PLACEHOLDER_PREFIX}%s{ETX}'
 INLINE_PLACEHOLDER_RE = re.compile(INLINE_PLACEHOLDER % r'([0-9]+)')
-AMP_SUBSTITUTE = STX+"amp"+ETX
-HTML_PLACEHOLDER = STX + "wzxhzdk:%s" + ETX
+AMP_SUBSTITUTE = f'{STX}amp{ETX}'
+HTML_PLACEHOLDER = f'{STX}wzxhzdk:%s{ETX}'
 HTML_PLACEHOLDER_RE = re.compile(HTML_PLACEHOLDER % r'([0-9]+)')
-TAG_PLACEHOLDER = STX + "hzzhzkh:%s" + ETX
+TAG_PLACEHOLDER = f'{STX}hzzhzkh:%s{ETX}'
 
 
 """

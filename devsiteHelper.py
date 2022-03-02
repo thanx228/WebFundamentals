@@ -42,9 +42,9 @@ def checkForRedirect(requestedPath, lang, useMemcache):
   requestDir = re.sub(r'^/?web/', '', requestDir)
 
   # Check if the requested path is actually a directory
-  if not requestDir.endswith('/'):
-    if os.path.isdir(os.path.join(SOURCE_PATH, lang, requestDir)):
-      return '/web/' + requestDir + '/'
+  if not requestDir.endswith('/') and os.path.isdir(
+      os.path.join(SOURCE_PATH, lang, requestDir)):
+    return f'/web/{requestDir}/'
 
   # Get the directory the file was requested from
   if not requestDir.endswith('/'):
@@ -55,7 +55,7 @@ def checkForRedirect(requestedPath, lang, useMemcache):
     try:
       redirectFile = os.path.join(requestDir, '_redirects.yaml')
       if os.path.isfile(redirectFile):
-        memcacheKey = 'redirectFile-' + redirectFile
+        memcacheKey = f'redirectFile-{redirectFile}'
         parsed = getFromMemCache(memcacheKey)
         if parsed is None:
           raw = open(redirectFile, 'r').read().decode('utf8')
@@ -99,11 +99,11 @@ def readFile(requestedFile, lang='en'):
       result = result.decode('utf8')
       return result
     except Exception as e:
-      result = ' - Exception occurred trying to read: ' + requestedFile
+      result = f' - Exception occurred trying to read: {requestedFile}'
       logging.exception(result)
       return None
   else:
-    result = ' - ReadFile failed trying to find: ' + requestedFile
+    result = f' - ReadFile failed trying to find: {requestedFile}'
     logging.error(result)
     return None
 
@@ -148,12 +148,10 @@ def parseBookYaml(pathToBook, lang='en'):
       A dictionary with the parsed book.
   """
   try:
-    result = {}
     upperTabs = []
-    result['upper_tabs'] = upperTabs
+    result = {'upper_tabs': upperTabs}
     bookYaml = yaml.load(readFile(pathToBook, lang))
-    for upperTab in bookYaml['upper_tabs']:
-      upperTabs.append(expandBook(upperTab))
+    upperTabs.extend(expandBook(upperTab) for upperTab in bookYaml['upper_tabs'])
     return result
   except Exception as e:
     logging.exception('Error in parseBookYaml')
@@ -171,10 +169,7 @@ def expandBook(book, lang='en'):
       A dictionary with the parsed & expanded book.
   """
   if isinstance(book, dict):
-    result = {}
-    for k, v in book.iteritems():
-      result[k] = expandBook(v, lang)
-    return result
+    return {k: expandBook(v, lang) for k, v in book.iteritems()}
   if isinstance(book, list):
     results = []
     for item in book:
@@ -187,11 +182,11 @@ def expandBook(book, lang='en'):
             "path": '#',
             "status": 'deprecated'
           }]
-          results = results + expandBook(items, lang)
+          results += expandBook(items, lang)
         else:
           newItems = yaml.load(tocFileContents)
           if 'toc' in newItems:
-            results = results + expandBook(newItems['toc'], lang)
+            results += expandBook(newItems['toc'], lang)
           else:
             logging.error('Unable to get \'toc\' element from %s\n%s',
                           item['include'], tocFileContents)
@@ -215,8 +210,7 @@ def getLowerTabs(bookYaml):
     for tab in bookYaml['upper_tabs']:
       if 'lower_tabs' in tab and 'other' in tab['lower_tabs']:
         for lowerTab in tab['lower_tabs']['other']:
-          lt = {}
-          lt['name'] = lowerTab['name']
+          lt = {'name': lowerTab['name']}
           if 'contents' in lowerTab:
             firstTabPath = getFirstTabPath(lowerTab['contents'])
             if firstTabPath is not None:
@@ -286,8 +280,8 @@ def getLeftNav(requestPath, bookYaml, lang='en'):
   except Exception as e:
     logging.exception(' - Unable to read or parse primary book.yaml')
     logging.exception(e)
-    whoops = '<h2>Whoops!</h2>'
-    whoops += '<p>An error occurred while trying to parse and build the'
+    whoops = ('<h2>Whoops!</h2>' +
+              '<p>An error occurred while trying to parse and build the')
     whoops += ' left hand navigation. Check the error logs.'
     whoops += '</p>'
     whoops += '<p>Exception occurred.</p>'
@@ -378,13 +372,10 @@ def renderDevSiteContent(content, lang='en'):
     fbMemcacheKey = '/framebox/' + hashlib.md5(fbContent.encode('utf-8')).hexdigest()
     replaceWith = '<iframe class="framebox inherit-locale'
     if fbClass:
-     replaceWith += ' ' + fbClass.group(1)
+      replaceWith += f' {fbClass.group(1)}'
     replaceWith += '" '
     replaceWith += 'style="width: 100%;'
-    if fbHeight:
-      replaceWith += 'height:' + fbHeight.group(1) + ';'
-    else:
-      replaceWith += 'height: 100px;'
+    replaceWith += f'height:{fbHeight.group(1)};' if fbHeight else 'height: 100px;'
     replaceWith += '" '
     # The sandbox attr will emulate being on a different origin
     replaceWith += 'sandbox="allow-forms allow-orientation-lock allow-pointer-lock allow-popups allow-presentation allow-scripts allow-top-navigation" '
@@ -414,8 +405,7 @@ def getInclude(includeTag, lang='en'):
   fileName = fileName.strip()
   result = None
   if fileName == 'comment-widget.html':
-    result = '<style>'
-    result += '#gplus-comment-container { border: 1px solid #c5c5c5; }'
+    result = '<style>' + '#gplus-comment-container { border: 1px solid #c5c5c5; }'
     result += '#gplus-comment-container > div { padding: 24px; }'
     result += '#gplus-title { background-color: #f5f5f5; }'
     result += '</style>'
@@ -427,7 +417,7 @@ def getInclude(includeTag, lang='en'):
   elif fileName.startswith('web/'):
     result = readFile(fileName, lang)
   if result is None:
-    return 'Warning: Unable to find include <code>' + fileName + '</code>'
+    return f'Warning: Unable to find include <code>{fileName}</code>'
   return result
 
 def getIncludeMD(includeTag, lang='en'):
@@ -437,7 +427,7 @@ def getIncludeMD(includeTag, lang='en'):
   fileName = fileName.replace('>>', '')
   result = readFile(fileName, lang)
   if result is None:
-    result = 'Warning: Unable to find markdown file: ' + fileName
+    result = f'Warning: Unable to find markdown file: {fileName}'
   return result
 
 
@@ -509,8 +499,8 @@ def getAnnouncementBanner(pathToProject, lang='en'):
   try:
     project = yaml.load(readFile(pathToProject, lang))
     if 'announcement' in project:
-      result = '<div class="devsite-banner devsite-banner-announcement">\n'
-      result += '<div class="devsite-banner-inner">\n'
+      result = ('<div class="devsite-banner devsite-banner-announcement">\n' +
+                '<div class="devsite-banner-inner">\n')
       result += project['announcement']['description']
       result += '\n</div>\n'
       result += '</div>'
@@ -529,7 +519,7 @@ def getFooterPromo(lang='en'):
   Returns:
       An HTML string with the appropriate footer.
   """
-  memcacheKey = 'footerLinkPromo-' + lang
+  memcacheKey = f'footerLinkPromo-{lang}'
   result = getFromMemCache(memcacheKey)
   if result is None:
     result = ''
@@ -562,7 +552,7 @@ def getFooterLinkBox(lang='en'):
   Returns:
       An HTML string with the appropriate footer.
   """
-  memcacheKey = 'footerLinkBoxes-' + lang
+  memcacheKey = f'footerLinkBoxes-{lang}'
   result = getFromMemCache(memcacheKey)
   if result is None:
     result = ''

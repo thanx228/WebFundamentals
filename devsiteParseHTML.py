@@ -80,14 +80,12 @@ def parse(requestPath, fileLocation, content, lang='en'):
 
   # Read the page title
   pageTitle = []
-  titleRO = re.search('<title>(.*?)</title>', head)
-  if titleRO:
+  if titleRO := re.search('<title>(.*?)</title>', head):
     title = titleRO.group(1)
     pageTitle.append(title)
     if body.find('<h1>') == -1:
       body = '<h1 class="page-title">' + title + '</h1>\n\n' + body
-  pageTitle.append(projectYaml['name'])
-  pageTitle.append('WebFu Staging')
+  pageTitle.extend((projectYaml['name'], 'WebFu Staging'))
   context['pageTitle'] = ' | '.join(pageTitle)
 
   # Get the footer path & read/parse the footer file.
@@ -114,14 +112,14 @@ def parse(requestPath, fileLocation, content, lang='en'):
   # # Build the table of contents & transform so it fits within DevSite
   context['renderedTOC'] = '<b>TOC Not Implemented</b> for DevSite HTML Pages'
 
-  gitHubEditUrl = 'https://github.com/google/WebFundamentals/blob/'
-  gitHubEditUrl += 'main/src/content/'
+  gitHubEditUrl = (
+      'https://github.com/google/WebFundamentals/blob/' + 'main/src/content/')
   gitHubEditUrl += fileLocation.replace(SOURCE_PATH, '')
   context['gitHubEditUrl'] = gitHubEditUrl
 
   gitHubIssueUrl = 'https://github.com/google/WebFundamentals/issues/'
   gitHubIssueUrl += 'new?title=Feedback for: ' + context['pageTitle'] + ' ['
-  gitHubIssueUrl += lang + ']&body='
+  gitHubIssueUrl += f'{lang}]&body='
   gitHubIssueUrl += gitHubEditUrl
   context['gitHubIssueUrl'] = gitHubIssueUrl
 

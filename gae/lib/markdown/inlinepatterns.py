@@ -92,13 +92,12 @@ The actual regular expressions for patterns
 -----------------------------------------------------------------------------
 """
 
+
 NOBRACKET = r'[^\]\[]*'
 BRK = (
-    r'\[(' +
-    (NOBRACKET + r'(\[')*6 +
-    (NOBRACKET + r'\])*')*6 +
-    NOBRACKET + r')\]'
-)
+    ((r'\[(' + f'{NOBRACKET}(\\[' * 6) + f'{NOBRACKET}\\])*' * 6) + NOBRACKET
+) + r')\]'
+
 NOIMG = r'(?<!\!)'
 
 # `e=f()` or ``e=f("`")``
@@ -130,16 +129,19 @@ LINK_RE = NOIMG + BRK + \
     r'''\(\s*(<.*?>|((?:(?:\(.*?\))|[^\(\)]))*?)\s*((['"])(.*?)\12\s*)?\)'''
 
 # ![alttxt](http://x.com/) or ![alttxt](<http://x.com/>)
-IMAGE_LINK_RE = r'\!' + BRK + r'\s*\(\s*(<.*?>|([^"\)\s]+\s*"[^"]*"|[^\)\s]*))\s*\)'
+IMAGE_LINK_RE = (
+    f'\\!{BRK}' + r'\s*\(\s*(<.*?>|([^"\)\s]+\s*"[^"]*"|[^\)\s]*))\s*\)'
+)
+
 
 # [Google][3]
 REFERENCE_RE = NOIMG + BRK + r'\s?\[([^\]]*)\]'
 
 # [Google]
-SHORT_REF_RE = NOIMG + r'\[([^\]]+)\]'
+SHORT_REF_RE = f'{NOIMG}\\[([^\\]]+)\\]'
 
 # ![alt text][2]
-IMAGE_REFERENCE_RE = r'\!' + BRK + '\s?\[([^\]]*)\]'
+IMAGE_REFERENCE_RE = f'\\!{BRK}\\s?\\[([^\\]]*)\\]'
 
 # stand-alone * or _
 NOT_STRONG_RE = r'((^| )(\*|_)( |$))'
@@ -233,7 +235,7 @@ class Pattern(object):
         except KeyError:  # pragma: no cover
             return text
 
-        def itertext(el):  # pragma: no cover
+        def itertext(el):    # pragma: no cover
             ' Reimplement Element.itertext for older python versions '
             tag = el.tag
             if not isinstance(tag, util.string_type) and tag is not None:
@@ -241,8 +243,7 @@ class Pattern(object):
             if el.text:
                 yield el.text
             for e in el:
-                for s in itertext(e):
-                    yield s
+                yield from itertext(e)
                 if e.tail:
                     yield e.tail
 
@@ -329,8 +330,7 @@ class HtmlPattern(Pattern):
     """ Store raw inline html and return a placeholder. """
     def handleMatch(self, m):
         rawhtml = self.unescape(m.group(2))
-        place_holder = self.markdown.htmlStash.store(rawhtml)
-        return place_holder
+        return self.markdown.htmlStash.store(rawhtml)
 
     def unescape(self, text):
         """ Return unescaped text given text with an inline placeholder. """
@@ -357,9 +357,7 @@ class LinkPattern(Pattern):
         el = util.etree.Element("a")
         el.text = m.group(2)
         title = m.group(13)
-        href = m.group(9)
-
-        if href:
+        if href := m.group(9):
             if href[0] == "<":
                 href = href[1:-1]
             el.set("href", self.sanitize_url(self.unescape(href.strip())))
@@ -513,8 +511,7 @@ class AutomailPattern(Pattern):
 
         def codepoint2name(code):
             """Return entity definition by code, or the code if not defined."""
-            entity = entities.codepoint2name.get(code)
-            if entity:
+            if entity := entities.codepoint2name.get(code):
                 return "%s%s;" % (util.AMP_SUBSTITUTE, entity)
             else:
                 return "%s#%d;" % (util.AMP_SUBSTITUTE, code)

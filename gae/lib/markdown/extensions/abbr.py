@@ -47,8 +47,7 @@ class AbbrPreprocessor(Preprocessor):
         '''
         new_text = []
         for line in lines:
-            m = ABBR_REF_RE.match(line)
-            if m:
+            if m := ABBR_REF_RE.match(line):
                 abbr = m.group('abbr').strip()
                 title = m.group('title').strip()
                 self.markdown.inlinePatterns['abbr-%s' % abbr] = \

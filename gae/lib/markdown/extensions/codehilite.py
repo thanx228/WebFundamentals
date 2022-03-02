@@ -108,10 +108,7 @@ class CodeHilite(object):
                 lexer = get_lexer_by_name(self.lang)
             except ValueError:
                 try:
-                    if self.guess_lang:
-                        lexer = guess_lexer(self.src)
-                    else:
-                        lexer = get_lexer_by_name('text')
+                    lexer = guess_lexer(self.src) if self.guess_lang else get_lexer_by_name('text')
                 except ValueError:
                     lexer = get_lexer_by_name('text')
             formatter = get_formatter_by_name('html',
@@ -132,9 +129,7 @@ class CodeHilite(object):
                 classes.append('language-%s' % self.lang)
             if self.linenums:
                 classes.append('linenums')
-            class_str = ''
-            if classes:
-                class_str = ' class="%s"' % ' '.join(classes)
+            class_str = ' class="%s"' % ' '.join(classes) if classes else ''
             return '<pre class="%s"><code%s>%s</code></pre>\n' % \
                    (self.css_class, class_str, txt)
 
@@ -171,9 +166,7 @@ class CodeHilite(object):
             # Optional highlight lines, single- or double-quote-delimited
             (hl_lines=(?P<quot>"|')(?P<hl_lines>.*?)(?P=quot))?
             ''',  re.VERBOSE)
-        # search first line for shebang
-        m = c.search(fl)
-        if m:
+        if m := c.search(fl):
             # we have a match
             try:
                 self.lang = m.group('lang').lower()

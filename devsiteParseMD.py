@@ -104,11 +104,9 @@ def parse(requestPath, fileLocation, content, lang='en'):
 
   # Get the page title
   pageTitle = []
-  titleRO = re.search(r'<h1 class="page-title".*?>(.*?)<\/h1>', content)
-  if titleRO:
+  if titleRO := re.search(r'<h1 class="page-title".*?>(.*?)<\/h1>', content):
     pageTitle.append(titleRO.group(1))
-  pageTitle.append(projectYaml['name'])
-  pageTitle.append('WebFu Staging')
+  pageTitle.extend((projectYaml['name'], 'WebFu Staging'))
   context['pageTitle'] = ' | '.join(pageTitle)
 
   # Get the footer path & read/parse the footer file.
@@ -135,14 +133,14 @@ def parse(requestPath, fileLocation, content, lang='en'):
   toc = re.sub(r'<li>', '<li class="devsite-nav-item">', toc)
   context['renderedTOC'] = toc;
 
-  gitHubEditUrl = 'https://github.com/google/WebFundamentals/blob/'
-  gitHubEditUrl += 'main/src/content/'
+  gitHubEditUrl = (
+      'https://github.com/google/WebFundamentals/blob/' + 'main/src/content/')
   gitHubEditUrl += fileLocation.replace(SOURCE_PATH, '')
   context['gitHubEditUrl'] = gitHubEditUrl
 
   gitHubIssueUrl = 'https://github.com/google/WebFundamentals/issues/'
   gitHubIssueUrl += 'new?title=Feedback for: ' + context['pageTitle'] + ' ['
-  gitHubIssueUrl += lang + ']&body='
+  gitHubIssueUrl += f'{lang}]&body='
   gitHubIssueUrl += gitHubEditUrl
   context['gitHubIssueUrl'] = gitHubIssueUrl
 

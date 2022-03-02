@@ -52,10 +52,7 @@ class Extension(object):
 
     def getConfig(self, key, default=''):
         """ Return a setting for the given key or an empty string. """
-        if key in self.config:
-            return self.config[key][0]
-        else:
-            return default
+        return self.config[key][0] if key in self.config else default
 
     def getConfigs(self):
         """ Return all configs settings as a dict. """
