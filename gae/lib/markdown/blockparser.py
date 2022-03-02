@@ -32,10 +32,7 @@ class State(list):
 
     def isstate(self, state):
         """ Test that top (current) level is of given state. """
-        if len(self):
-            return self[-1] == state
-        else:
-            return False
+        return self[-1] == state if len(self) else False
 
 
 class BlockParser:
@@ -94,7 +91,9 @@ class BlockParser:
         """
         while blocks:
             for processor in self.blockprocessors.values():
-                if processor.test(parent, blocks[0]):
-                    if processor.run(parent, blocks) is not False:
-                        # run returns True or None
-                        break
+                if (
+                    processor.test(parent, blocks[0])
+                    and processor.run(parent, blocks) is not False
+                ):
+                    # run returns True or None
+                    break

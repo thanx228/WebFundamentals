@@ -44,8 +44,7 @@ class HeaderIdTreeprocessor(Treeprocessor):
                     elem.set('id', unique(id, self.IDs))
                 if start_level:
                     level = int(elem.tag[-1]) + start_level
-                    if level > 6:
-                        level = 6
+                    level = min(level, 6)
                     elem.tag = 'h%d' % level
 
     def _get_meta(self):

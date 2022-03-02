@@ -38,10 +38,7 @@ class TableProcessor(BlockProcessor):
         header = block[0].strip()
         seperator = block[1].strip()
         rows = [] if len(block) < 3 else block[2:]
-        # Get format type (bordered by pipes or not)
-        border = False
-        if header.startswith('|'):
-            border = True
+        border = bool(header.startswith('|'))
         # Get alignment of columns
         align = []
         for c in self._split_row(seperator, border):
@@ -65,9 +62,7 @@ class TableProcessor(BlockProcessor):
     def _build_row(self, row, parent, align, border):
         """ Given a row of text, build table cells. """
         tr = etree.SubElement(parent, 'tr')
-        tag = 'td'
-        if parent.tag == 'thead':
-            tag = 'th'
+        tag = 'th' if parent.tag == 'thead' else 'td'
         cells = self._split_row(row, border)
         # We use align here rather than cells to ensure every row
         # contains the same number of columns.
@@ -95,30 +90,28 @@ class TableProcessor(BlockProcessor):
             # fallback on old behaviour
             return row.split(marker)
         # modify the backtick pattern to only match at the beginning of the search string
-        backtick_pattern = BacktickPattern('^' + BACKTICK_RE)
+        backtick_pattern = BacktickPattern(f'^{BACKTICK_RE}')
         elements = []
         current = ''
         i = 0
         while i < len(row):
             letter = row[i]
             if letter == marker:
-                if current != '' or len(elements) == 0:
+                if current != '' or not elements:
                     # Don't append empty string unless it is the first element
                     # The border is already removed when we get the row, then the line is strip()'d
                     # If the first element is a marker, then we have an empty first cell
                     elements.append(current)
                 current = ''
+            elif match := backtick_pattern.getCompiledRegExp().match(row[i:]):
+                groups = match.groups()
+                delim = groups[1]  # the code block delimeter (ie 1 or more backticks)
+                row_contents = groups[2]  # the text contained inside the code block
+                i += match.start(4) - 1  # jump pointer to the beginning of the rest of the text (group #4)
+                element = delim + row_contents + delim  # reinstert backticks
+                current += element
             else:
-                match = backtick_pattern.getCompiledRegExp().match(row[i:])
-                if not match:
-                    current += letter
-                else:
-                    groups = match.groups()
-                    delim = groups[1]  # the code block delimeter (ie 1 or more backticks)
-                    row_contents = groups[2]  # the text contained inside the code block
-                    i += match.start(4) - 1  # jump pointer to the beginning of the rest of the text (group #4)
-                    element = delim + row_contents + delim  # reinstert backticks
-                    current += element
+                current += letter
             i += 1
         elements.append(current)
         return elements

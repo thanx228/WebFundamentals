@@ -73,8 +73,7 @@ class InlineProcessor(Treeprocessor):
         Returns: placeholder id and string index, after the found placeholder.
 
         """
-        m = self.__placeholder_re.search(data, index)
-        if m:
+        if m := self.__placeholder_re.search(data, index):
             return m.group(1), m.end()
         else:
             return None, index + 1
@@ -153,22 +152,22 @@ class InlineProcessor(Treeprocessor):
 
         """
         def linkText(text):
-            if text:
-                if result:
-                    if result[-1].tail:
-                        result[-1].tail += text
-                    else:
-                        result[-1].tail = text
-                elif not isText:
-                    if parent.tail:
-                        parent.tail += text
-                    else:
-                        parent.tail = text
+            if not text:
+                return
+            if result:
+                if result[-1].tail:
+                    result[-1].tail += text
                 else:
-                    if parent.text:
-                        parent.text += text
-                    else:
-                        parent.text = text
+                    result[-1].tail = text
+            elif not isText:
+                if parent.tail:
+                    parent.tail += text
+                else:
+                    parent.tail = text
+            elif parent.text:
+                parent.text += text
+            else:
+                parent.text = text
         result = []
         strartIndex = 0
         while data:
@@ -241,19 +240,18 @@ class InlineProcessor(Treeprocessor):
         if node is None:
             return data, True, len(leftData)+match.span(len(match.groups()))[0]
 
-        if not isString(node):
-            if not isinstance(node.text, util.AtomicString):
-                # We need to process current node too
-                for child in [node] + list(node):
-                    if not isString(node):
-                        if child.text:
-                            child.text = self.__handleInline(
-                                child.text, patternIndex + 1
-                            )
-                        if child.tail:
-                            child.tail = self.__handleInline(
-                                child.tail, patternIndex
-                            )
+        if not isString(node) and not isinstance(node.text, util.AtomicString):
+            # We need to process current node too
+            for child in [node] + list(node):
+                if not isString(node):
+                    if child.text:
+                        child.text = self.__handleInline(
+                            child.text, patternIndex + 1
+                        )
+                    if child.tail:
+                        child.tail = self.__handleInline(
+                            child.tail, patternIndex
+                        )
 
         placeholder = self.__stashNode(node, pattern.type())
 
@@ -311,13 +309,15 @@ class InlineProcessor(Treeprocessor):
                     stack.append(child)
 
             for element, lst in insertQueue:
-                if self.markdown.enable_attributes:
-                    if element.text and isString(element.text):
-                        element.text = inlinepatterns.handleAttributes(
-                            element.text, element
-                        )
-                i = 0
-                for newChild in lst:
+                if (
+                    self.markdown.enable_attributes
+                    and element.text
+                    and isString(element.text)
+                ):
+                    element.text = inlinepatterns.handleAttributes(
+                        element.text, element
+                    )
+                for i, newChild in enumerate(lst):
                     if self.markdown.enable_attributes:
                         # Processing attributes
                         if newChild.tail and isString(newChild.tail):
@@ -329,7 +329,6 @@ class InlineProcessor(Treeprocessor):
                                 newChild.text, newChild
                             )
                     element.insert(i, newChild)
-                    i += 1
         return tree
 
 

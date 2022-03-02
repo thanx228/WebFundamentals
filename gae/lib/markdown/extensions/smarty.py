@@ -81,6 +81,7 @@ smartypants.py license:
 '''
 
 
+
 from __future__ import unicode_literals
 from . import Extension
 from ..inlinepatterns import HtmlPattern, HTML_RE
@@ -147,7 +148,7 @@ closingSingleQuotesRegex2 = r"(?<=%s)'(\s|s\b)" % closeClass
 remainingSingleQuotesRegex = "'"
 remainingDoubleQuotesRegex = '"'
 
-HTML_STRICT_RE = HTML_RE + r'(?!\>)'
+HTML_STRICT_RE = f'{HTML_RE}(?!\\>)'
 
 
 class SubstituteTextPattern(HtmlPattern):
@@ -158,13 +159,12 @@ class SubstituteTextPattern(HtmlPattern):
         self.markdown = markdown_instance
 
     def handleMatch(self, m):
-        result = ''
-        for part in self.replace:
-            if isinstance(part, int):
-                result += m.group(part)
-            else:
-                result += self.markdown.htmlStash.store(part, safe=True)
-        return result
+        return ''.join(
+            m.group(part)
+            if isinstance(part, int)
+            else self.markdown.htmlStash.store(part, safe=True)
+            for part in self.replace
+        )
 
 
 class SmartyExtension(Extension):

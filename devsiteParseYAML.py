@@ -77,13 +77,11 @@ def parse(requestPath, fileLocation, rawYaml, lang='en'):
     context['customHeader'] = page['header']['custom_html']
 
   # Get the header title
-  if 'parent_project_metadata_path' in projectYaml:
+  if ('parent_project_metadata_path' in projectYaml
+      or 'title' not in parsedYaml):
     context['headerTitle'] = projectYaml['name']
-  elif 'title' in parsedYaml:
-    context['headerTitle'] = parsedYaml['title']
   else:
-    context['headerTitle'] = projectYaml['name']
-
+    context['headerTitle'] = parsedYaml['title']
   # Get the header description
   if 'header' in page and 'description' in page['header']:
     context['headerDescription'] = page['header']['description']
@@ -98,8 +96,7 @@ def parse(requestPath, fileLocation, rawYaml, lang='en'):
   pageTitle = []
   if 'title' in parsedYaml:
     pageTitle.append(parsedYaml['title'])
-  pageTitle.append(projectYaml['name'])
-  pageTitle.append('WebFu Staging')
+  pageTitle.extend((projectYaml['name'], 'WebFu Staging'))
   context['pageTitle'] = ' | '.join(pageTitle)
 
   # Get the footer path & read/parse the footer file.

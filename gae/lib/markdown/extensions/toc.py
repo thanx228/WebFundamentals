@@ -35,8 +35,7 @@ IDCOUNT_RE = re.compile(r'^(.*)_([0-9]+)$')
 def unique(id, ids):
     """ Ensure id is unique in set of ids. Append '_1', '_2'... if not """
     while id in ids or not id:
-        m = IDCOUNT_RE.match(id)
-        if m:
+        if m := IDCOUNT_RE.match(id):
             id = '%s_%d' % (m.group(1), int(m.group(2))+1)
         else:
             id = '%s_%d' % (id, 1)
@@ -168,14 +167,13 @@ class TocTreeprocessor(Treeprocessor):
     def set_level(self, elem):
         ''' Adjust header level according to base level. '''
         level = int(elem.tag[-1]) + self.base_level
-        if level > 6:
-            level = 6
+        level = min(level, 6)
         elem.tag = 'h%d' % level
 
     def add_anchor(self, c, elem_id):  # @ReservedAssignment
         anchor = etree.Element("a")
         anchor.text = c.text
-        anchor.attrib["href"] = "#" + elem_id
+        anchor.attrib["href"] = f"#{elem_id}"
         anchor.attrib["class"] = "toclink"
         c.text = ""
         for elem in c:
@@ -189,7 +187,7 @@ class TocTreeprocessor(Treeprocessor):
         permalink.text = ("%spara;" % AMP_SUBSTITUTE
                           if self.use_permalinks is True
                           else self.use_permalinks)
-        permalink.attrib["href"] = "#" + elem_id
+        permalink.attrib["href"] = f"#{elem_id}"
         permalink.attrib["class"] = "headerlink"
         permalink.attrib["title"] = "Permanent link"
         c.append(permalink)
@@ -225,11 +223,7 @@ class TocTreeprocessor(Treeprocessor):
 
     def run(self, doc):
         # Get a list of id attributes
-        used_ids = set()
-        for el in doc.iter():
-            if "id" in el.attrib:
-                used_ids.add(el.attrib["id"])
-
+        used_ids = {el.attrib["id"] for el in doc.iter() if "id" in el.attrib}
         toc_tokens = []
         for el in doc.iter():
             if isinstance(el.tag, string_type) and self.header_rgx.match(el.tag):

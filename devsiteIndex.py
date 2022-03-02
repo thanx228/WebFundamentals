@@ -32,8 +32,7 @@ def getPage(requestPath, lang):
 def getDirIndex(requestPath):
   result = None
   if os.environ['SERVER_SOFTWARE'].startswith('Dev'):
-    result = ''
-    result += '<h1>Generated Listing Page</h1>\n'
+    result = '' + '<h1>Generated Listing Page</h1>\n'
     result += '<aside class="warning" markdown="1"><strong>Oops</strong> '
     result += '<span>Looks like you forgot to build the index files. Try '
     result += 'running <code>gulp build</code> from the command line.'

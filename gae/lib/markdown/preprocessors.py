@@ -74,25 +74,16 @@ class HtmlBlockPreprocessor(Preprocessor):
     markdown_in_raw = False
 
     def _get_left_tag(self, block):
-        m = self.left_tag_re.match(block)
-        if m:
+        if m := self.left_tag_re.match(block):
             tag = m.group('tag')
             raw_attrs = m.group('attrs')
             attrs = {}
             if raw_attrs:
                 for ma in self.attrs_re.finditer(raw_attrs):
                     if ma.group('attr'):
-                        if ma.group('value'):
-                            attrs[ma.group('attr').strip()] = ma.group('value')
-                        else:
-                            attrs[ma.group('attr').strip()] = ""
+                        attrs[ma.group('attr').strip()] = ma.group('value') or ""
                     elif ma.group('attr1'):
-                        if ma.group('value1'):
-                            attrs[ma.group('attr1').strip()] = ma.group(
-                                'value1'
-                            )
-                        else:
-                            attrs[ma.group('attr1').strip()] = ""
+                        attrs[ma.group('attr1').strip()] = ma.group('value1') or ""
                     elif ma.group('attr2'):
                         attrs[ma.group('attr2').strip()] = ""
             return tag, len(m.group(0)), attrs
@@ -131,7 +122,7 @@ class HtmlBlockPreprocessor(Preprocessor):
     def _equal_tags(self, left_tag, right_tag):
         if left_tag[0] in ['?', '@', '%']:  # handle PHP, etc.
             return True
-        if ("/" + left_tag) == right_tag:
+        if f"/{left_tag}" == right_tag:
             return True
         if (right_tag == "--" and left_tag == "--"):
             return True
@@ -204,58 +195,7 @@ class HtmlBlockPreprocessor(Preprocessor):
             if block.startswith("\n"):
                 block = block[1:]
 
-            if not in_tag:
-                if block.startswith("<") and len(block.strip()) > 1:
-
-                    if block[1:4] == "!--":
-                        # is a comment block
-                        left_tag, left_index, attrs = "--", 2, {}
-                    else:
-                        left_tag, left_index, attrs = self._get_left_tag(block)
-                    right_tag, data_index = self._get_right_tag(left_tag,
-                                                                left_index,
-                                                                block)
-                    # keep checking conditions below and maybe just append
-
-                    if data_index < len(block) and (util.isBlockLevel(left_tag) or left_tag == '--'):
-                        text.insert(0, block[data_index:])
-                        block = block[:data_index]
-
-                    if not (util.isBlockLevel(left_tag) or block[1] in ["!", "?", "@", "%"]):
-                        new_blocks.append(block)
-                        continue
-
-                    if self._is_oneliner(left_tag):
-                        new_blocks.append(block.strip())
-                        continue
-
-                    if block.rstrip().endswith(">") \
-                            and self._equal_tags(left_tag, right_tag):
-                        if self.markdown_in_raw and 'markdown' in attrs.keys():
-                            block = block[left_index:-len(right_tag) - 2]
-                            new_blocks.append(self.markdown.htmlStash.
-                                              store_tag(left_tag, attrs, 0, 2))
-                            new_blocks.extend([block])
-                        else:
-                            new_blocks.append(
-                                self.markdown.htmlStash.store(block.strip()))
-                        continue
-                    else:
-                        # if is block level tag and is not complete
-                        if (not self._equal_tags(left_tag, right_tag)) and \
-                           (util.isBlockLevel(left_tag) or left_tag == "--"):
-                            items.append(block.strip())
-                            in_tag = True
-                        else:
-                            new_blocks.append(
-                                self.markdown.htmlStash.store(block.strip())
-                            )
-                        continue
-
-                else:
-                    new_blocks.append(block)
-
-            else:
+            if in_tag:
                 items.append(block)
 
                 right_tag, data_index = self._get_right_tag(left_tag, 0, block)
@@ -272,10 +212,7 @@ class HtmlBlockPreprocessor(Preprocessor):
                     if self.markdown_in_raw and 'markdown' in attrs.keys():
                         items[0] = items[0][left_index:]
                         items[-1] = items[-1][:-len(right_tag) - 2]
-                        if items[len(items) - 1]:  # not a newline/empty string
-                            right_index = len(items) + 3
-                        else:
-                            right_index = len(items) + 2
+                        right_index = len(items) + 3 if items[-1] else len(items) + 2
                         new_blocks.append(self.markdown.htmlStash.store_tag(
                             left_tag, attrs, 0, right_index))
                         placeholderslen = len(self.markdown.htmlStash.tag_data)
@@ -290,14 +227,62 @@ class HtmlBlockPreprocessor(Preprocessor):
                             self.markdown.htmlStash.store('\n\n'.join(items)))
                     items = []
 
+            elif block.startswith("<") and len(block.strip()) > 1:
+
+                if block[1:4] == "!--":
+                    # is a comment block
+                    left_tag, left_index, attrs = "--", 2, {}
+                else:
+                    left_tag, left_index, attrs = self._get_left_tag(block)
+                right_tag, data_index = self._get_right_tag(left_tag,
+                                                            left_index,
+                                                            block)
+                # keep checking conditions below and maybe just append
+
+                if data_index < len(block) and (util.isBlockLevel(left_tag) or left_tag == '--'):
+                    text.insert(0, block[data_index:])
+                    block = block[:data_index]
+
+                if not util.isBlockLevel(left_tag) and block[1] not in [
+                    "!",
+                    "?",
+                    "@",
+                    "%",
+                ]:
+                    new_blocks.append(block)
+                    continue
+
+                if self._is_oneliner(left_tag):
+                    new_blocks.append(block.strip())
+                    continue
+
+                if block.rstrip().endswith(">") \
+                            and self._equal_tags(left_tag, right_tag):
+                    if self.markdown_in_raw and 'markdown' in attrs.keys():
+                        block = block[left_index:-len(right_tag) - 2]
+                        new_blocks.append(self.markdown.htmlStash.
+                                          store_tag(left_tag, attrs, 0, 2))
+                        new_blocks.extend([block])
+                    else:
+                        new_blocks.append(
+                            self.markdown.htmlStash.store(block.strip()))
+                elif (not self._equal_tags(left_tag, right_tag)) and \
+                           (util.isBlockLevel(left_tag) or left_tag == "--"):
+                    items.append(block.strip())
+                    in_tag = True
+                else:
+                    new_blocks.append(
+                        self.markdown.htmlStash.store(block.strip())
+                    )
+                continue
+            else:
+                new_blocks.append(block)
+
         if items:
             if self.markdown_in_raw and 'markdown' in attrs.keys():
                 items[0] = items[0][left_index:]
                 items[-1] = items[-1][:-len(right_tag) - 2]
-                if items[len(items) - 1]:  # not a newline/empty string
-                    right_index = len(items) + 3
-                else:
-                    right_index = len(items) + 2
+                right_index = len(items) + 3 if items[-1] else len(items) + 2
                 new_blocks.append(
                     self.markdown.htmlStash.store_tag(
                         left_tag, attrs, 0, right_index))
@@ -328,15 +313,12 @@ class ReferencePreprocessor(Preprocessor):
         new_text = []
         while lines:
             line = lines.pop(0)
-            m = self.RE.match(line)
-            if m:
+            if m := self.RE.match(line):
                 id = m.group(1).strip().lower()
                 link = m.group(2).lstrip('<').rstrip('>')
                 t = m.group(5) or m.group(6) or m.group(7)
                 if not t:
-                    # Check next line for title
-                    tm = self.TITLE_RE.match(lines[0])
-                    if tm:
+                    if tm := self.TITLE_RE.match(lines[0]):
                         lines.pop(0)
                         t = tm.group(2) or tm.group(3) or tm.group(4)
                 self.markdown.references[id] = (link, t)
